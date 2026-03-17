@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,12 +23,9 @@ export default function Auth() {
   const [mode, setMode] = useState("login"); // "login" | "signup"
 
   // Login state
-  const [loginUserName, setLoginUserName] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginEmployeeNumber, setLoginEmployeeNumber] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [loginRole, setLoginRole] = useState("user");
-  const [loginDesignation, setLoginDesignation] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
 
@@ -44,7 +41,61 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupError, setSignupError] = useState("");
 
+  // OTP verification state
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [isSignupLoading, setIsSignupLoading] = useState(false);
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [isResendLoading, setIsResendLoading] = useState(false);
+
   const teamTitle = team === "presales" ? "ESDS Presales Tender Tracker" : "ESDS Sales Tender Tracker";
+
+  const resetLoginForm = () => {
+    setLoginEmail("");
+    setLoginEmployeeNumber("");
+    setLoginPassword("");
+    setShowLoginPassword(false);
+    setLoginError("");
+  };
+
+  const resetSignupForm = () => {
+    setSignupFullName("");
+    setSignupEmail("");
+    setSignupEmployeeNumber("");
+    setSignupDesignation("");
+    setSignupRole("user");
+    setSignupPassword("");
+    setSignupConfirmPassword("");
+    setShowSignupPassword(false);
+    setShowConfirmPassword(false);
+    setSignupError("");
+  };
+
+  const resetOtpForm = () => {
+    setOtpEmail("");
+    setOtpCode("");
+    setOtpError("");
+    setResendCooldown(0);
+  };
+
+  useEffect(() => {
+    if (!resendCooldown) return;
+    const id = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [resendCooldown]);
+
+  // If already logged in, do not show Auth page; redirect to dashboard
+  useEffect(() => {
+    const userStr = localStorage.getItem("esds_user");
+    if (userStr) {
+      navigate(createPageUrl(`Dashboard?team=${team}`), { replace: true });
+    }
+  }, [navigate, team]);
 
   // Auto-fill login fields from backend (primary) or localStorage (fallback)
   const handleEmailBlur = async (email) => {
@@ -57,9 +108,6 @@ export default function Auth() {
       if (profiles && profiles.length > 0) {
         const p = profiles[0];
         setLoginEmployeeNumber(p.employee_number || "");
-        setLoginRole(p.role || "user");
-        setLoginUserName(p.full_name || "");
-        setLoginDesignation(p.designation || "");
         return;
       }
     } catch (e) {
@@ -72,9 +120,6 @@ export default function Auth() {
     if (stored) {
       const p = JSON.parse(stored);
       setLoginEmployeeNumber(p.employeeNumber || "");
-      setLoginRole(p.role || "user");
-      setLoginUserName(p.fullName || "");
-      setLoginDesignation(p.designation || "");
     }
   };
 
@@ -99,14 +144,10 @@ export default function Auth() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError("");
+    if (isLoginLoading) return;
 
     if (!loginEmail || !loginPassword || !loginEmployeeNumber) {
       setLoginError("Please enter email, employee number, and password");
-      return;
-    }
-
-    if (loginRole !== "admin" && !loginDesignation) {
-      setLoginError("Please select a designation");
       return;
     }
 
@@ -116,9 +157,11 @@ export default function Auth() {
     }
 
     try {
+      setIsLoginLoading(true);
       const res = await api.post("/auth/login", {
         email: loginEmail,
         password: loginPassword,
+        team,
       });
       const { token, user } = res.data;
       localStorage.setItem("esds_token", token);
@@ -126,12 +169,11 @@ export default function Auth() {
       const userData = {
         email: user.email,
         employeeNumber: profile.employee_number || loginEmployeeNumber,
-        designation: profile.designation || (loginRole === "team_lead" ? loginDesignation : ""),
-        role: user.role || loginRole,
+        designation: profile.designation || "",
+        role: user.role || profile.role || "user",
         team: profile.team || team,
         fullName:
           profile.full_name ||
-          loginUserName ||
           loginEmail
             .split("@")[0]
             .replace(".", " ")
@@ -142,13 +184,27 @@ export default function Auth() {
       localStorage.setItem("esds_user", JSON.stringify(userData));
       navigate(createPageUrl(`Dashboard?team=${team}`));
     } catch (err) {
-      setLoginError(err.response?.data?.message || "Login failed");
+      const data = err.response?.data;
+      const message = data?.message || "Login failed";
+      // If backend indicates OTP is required, redirect to OTP verification screen
+      if (data?.requireOtp) {
+        setOtpEmail(loginEmail);
+        setOtpCode("");
+        setOtpError("");
+        setMode("otp");
+        setResendCooldown(180);
+      } else {
+        setLoginError(message);
+      }
+    } finally {
+      setIsLoginLoading(false);
     }
   };
 
   const handleSignup = async (e) => {
     e.preventDefault();
     setSignupError("");
+    if (isSignupLoading) return;
 
     if (!signupFullName || !signupEmail || !signupEmployeeNumber || !signupPassword || !signupConfirmPassword) {
       setSignupError("Please fill in all required fields");
@@ -176,6 +232,7 @@ export default function Auth() {
     }
 
     try {
+      setIsSignupLoading(true);
       const res = await api.post("/auth/signup", {
         fullName: signupFullName,
         email: signupEmail,
@@ -185,23 +242,89 @@ export default function Auth() {
         team,
         password: signupPassword,
       });
+      const message =
+        res.data?.message ||
+        "Signup successful. Please verify the OTP sent to your email, then sign in.";
+      // Do not auto-login; switch to OTP verification screen
+      resetLoginForm();
+      resetSignupForm();
+      setOtpEmail(signupEmail);
+      setOtpCode("");
+      setOtpError("");
+      setMode("otp");
+      setResendCooldown(180);
+      setSignupError(message);
+    } catch (e) {
+      const data = e.response?.data;
+      const message = data?.message || "Signup failed";
+
+      // If backend tells us OTP is pending for this user, redirect to OTP screen
+      if (data?.otpPending) {
+        setOtpEmail(signupEmail);
+        setOtpCode("");
+        setOtpError("");
+        setMode("otp");
+        setResendCooldown(180);
+        setSignupError(message);
+      } else {
+        setSignupError(message);
+      }
+    } finally {
+      setIsSignupLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!otpEmail || resendCooldown > 0 || isResendLoading) return;
+    try {
+      setIsResendLoading(true);
+      await api.post("/auth/resend-otp", { email: otpEmail });
+      setResendCooldown(180);
+      setOtpError("");
+    } catch (err) {
+      const message = err.response?.data?.message || "Failed to resend OTP";
+      setOtpError(message);
+    } finally {
+      setIsResendLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setOtpError("");
+    if (isOtpLoading) return;
+
+    if (!otpEmail || !otpCode) {
+      setOtpError("Please enter the OTP sent to your email");
+      return;
+    }
+
+    try {
+      setIsOtpLoading(true);
+      const res = await api.post("/auth/verify-otp", {
+        email: otpEmail,
+        otp: otpCode,
+      });
       const { token, user } = res.data;
       localStorage.setItem("esds_token", token);
       const profile = user.profile || {};
+      const effectiveTeam = profile.team || team;
       const userData = {
         email: user.email,
-        employeeNumber: profile.employee_number || signupEmployeeNumber,
-        designation: profile.designation || signupDesignation,
-        role: user.role || signupRole,
-        team: profile.team || team,
-        fullName: profile.full_name || signupFullName,
+        employeeNumber: profile.employee_number || "",
+        designation: profile.designation || "",
+        role: user.role || profile.role || "user",
+        team: effectiveTeam,
+        fullName: profile.full_name || user.email.split("@")[0],
       };
       localStorage.setItem("esds_user", JSON.stringify(userData));
-      localStorage.setItem(`esds_profile_${signupEmail}`, JSON.stringify(userData));
-      navigate(createPageUrl(`Dashboard?team=${team}`));
-    } catch (e) {
-      setSignupError(e.response?.data?.message || "Signup failed");
-      return;
+      localStorage.setItem(`esds_profile_${user.email}`, JSON.stringify(userData));
+      navigate(createPageUrl(`Dashboard?team=${effectiveTeam}`));
+    } catch (err) {
+      const message = err.response?.data?.message || "OTP verification failed";
+      setOtpError(message);
+    } finally {
+      setIsOtpLoading(false);
     }
   };
 
@@ -240,7 +363,11 @@ export default function Auth() {
           {/* Tab Toggle */}
           <div className="flex bg-gray-100 rounded-xl p-1 mb-4">
             <button
-              onClick={() => setMode("login")}
+              onClick={() => {
+                resetOtpForm();
+                resetLoginForm();
+                setMode("login");
+              }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
                 mode === "login"
                   ? "bg-white text-gray-900 shadow-sm"
@@ -250,7 +377,11 @@ export default function Auth() {
               Sign In
             </button>
             <button
-              onClick={() => setMode("signup")}
+              onClick={() => {
+                resetOtpForm();
+                resetSignupForm();
+                setMode("signup");
+              }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
                 mode === "signup"
                   ? "bg-white text-gray-900 shadow-sm"
@@ -301,49 +432,6 @@ export default function Auth() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-gray-700 font-medium text-sm">Select Role</Label>
-                  <Select value={loginRole} onValueChange={(val) => { setLoginRole(val); setLoginDesignation(""); setLoginUserName(""); }}>
-                    <SelectTrigger className="h-10 rounded-xl border-gray-200 bg-gray-50/50 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="team_lead">Team Lead</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {loginRole !== "admin" && (
-                  <>
-                    <div className="space-y-1">
-                      <Label className="text-gray-700 font-medium text-sm">User Name</Label>
-                      <Input
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={loginUserName}
-                        onChange={(e) => setLoginUserName(e.target.value)}
-                        className="h-10 rounded-xl border-gray-200 bg-gray-50/50 text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-gray-700 font-medium text-sm">Designation</Label>
-                      <Select value={loginDesignation} onValueChange={setLoginDesignation}>
-                        <SelectTrigger className="h-10 rounded-xl border-gray-200 bg-gray-50/50 text-sm">
-                          <SelectValue placeholder="Select designation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {designationOptions.map((d) => (
-                            <SelectItem key={d} value={d}>{d}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-
-                <div className="space-y-1">
                   <Label className="text-gray-700 font-medium text-sm">Password</Label>
                   <div className="relative">
                     <Input
@@ -375,13 +463,14 @@ export default function Auth() {
 
                 <Button
                   type="submit"
+                disabled={isLoginLoading}
                   className="w-full h-11 bg-[#1e3a8a] hover:bg-[#1e40af] text-white rounded-xl font-semibold text-sm gap-2 shadow-lg shadow-blue-900/20"
                 >
-                  <LogIn className="w-4 h-4" />
-                  Sign In
+                <LogIn className="w-4 h-4" />
+                {isLoginLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </motion.form>
-            ) : (
+            ) : mode === "signup" ? (
               <motion.form
                 key="signup"
                 initial={{ opacity: 0, x: 20 }}
@@ -512,10 +601,99 @@ export default function Auth() {
 
                 <Button
                   type="submit"
+                disabled={isSignupLoading}
                   className="w-full h-11 bg-[#00A3E0] hover:bg-[#0090c7] text-white rounded-xl font-semibold text-sm gap-2 shadow-lg shadow-sky-500/20"
                 >
-                  <UserPlus className="w-4 h-4" />
-                  Create Account
+                <UserPlus className="w-4 h-4" />
+                {isSignupLoading ? "Creating account..." : "Create Account"}
+                </Button>
+              </motion.form>
+            ) : (
+              <motion.form
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                onSubmit={handleVerifyOtp}
+                className="space-y-2"
+              >
+                <div className="text-center mb-1">
+                  <h1 className="text-xl font-bold text-gray-900">Verify Account</h1>
+                  <p className="text-gray-500 text-sm">
+                    Enter the OTP sent to your email to activate your account.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-gray-700 font-medium text-sm">Email</Label>
+                  <Input
+                    type="email"
+                    value={otpEmail}
+                    disabled
+                    className="h-10 rounded-xl border-gray-200 bg-gray-50/70 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-gray-700 font-medium text-sm">OTP Code</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="Enter 6-digit OTP"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="h-10 rounded-xl border-gray-200 bg-gray-50/50 text-sm tracking-[0.3em] text-center"
+                  />
+                </div>
+
+                {otpError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-xs"
+                  >
+                    {otpError}
+                  </motion.div>
+                )}
+
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={!otpEmail || resendCooldown > 0 || isResendLoading}
+                    className={`underline ${
+                      resendCooldown > 0 || !otpEmail || isResendLoading
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-blue-600 hover:text-blue-800"
+                    }`}
+                  >
+                    {isResendLoading ? "Sending..." : "Resend OTP"}
+                  </button>
+                  {resendCooldown > 0 && (
+                    <span>{`You can resend OTP in ${Math.floor(resendCooldown / 60)
+                      .toString()
+                      .padStart(1, "0")}:${(resendCooldown % 60).toString().padStart(2, "0")}`}</span>
+                  )}
+                </div>
+
+                {signupError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2 rounded-xl text-xs"
+                  >
+                    {signupError}
+                  </motion.div>
+                )}
+
+                <Button
+                  type="submit"
+                disabled={isOtpLoading}
+                  className="w-full h-11 bg-[#1e3a8a] hover:bg-[#1e40af] text-white rounded-xl font-semibold text-sm gap-2 shadow-lg shadow-blue-900/20"
+                >
+                {isOtpLoading ? "Verifying..." : "Verify OTP"}
                 </Button>
               </motion.form>
             )}

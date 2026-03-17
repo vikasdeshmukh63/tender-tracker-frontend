@@ -9,30 +9,24 @@ export default function ValueChart({ tenders }) {
   const data = React.useMemo(() => {
     const startDate = getDateRangeFromFilter(filter);
     const monthlyData = {};
-    
+
     tenders.forEach((t) => {
-      if (startDate && t.created_date) {
-        const createdDate = new Date(t.created_date);
-        if (createdDate < startDate) return;
+      const d = t.submission_date || t.date || t.created_date;
+      if (!d) return;
+      const dt = new Date(d);
+      if (startDate && dt < startDate) return;
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (!monthlyData[key]) {
+        monthlyData[key] = { month: key, total: 0, won: 0 };
       }
-      if (t.month && t.year) {
-        const key = `${t.month} ${t.year}`;
-        if (!monthlyData[key]) {
-          monthlyData[key] = { month: key, total: 0, won: 0 };
-        }
-        monthlyData[key].total += t.estimated_value || 0;
-        if (t.status === "won") {
-          monthlyData[key].won += t.estimated_value || 0;
-        }
+      monthlyData[key].total += t.estimated_value || 0;
+      if (t.status === "won") {
+        monthlyData[key].won += t.estimated_value || 0;
       }
     });
 
     return Object.values(monthlyData)
-      .sort((a, b) => {
-        const [aMonth, aYear] = a.month.split(" ");
-        const [bMonth, bYear] = b.month.split(" ");
-        return aYear.localeCompare(bYear) || aMonth.localeCompare(bMonth);
-      })
+      .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-6);
   }, [tenders, filter]);
 

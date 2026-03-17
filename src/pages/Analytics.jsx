@@ -37,7 +37,10 @@ export default function Analytics() {
   const tenders = useMemo(() => {
     return allTenders.filter((t) => {
       const matchTeam = teamFilter === "all" || t.team === teamFilter;
-      const matchYear = yearFilter === "all" || t.year === yearFilter;
+      const d = t.submission_date || t.date || t.created_date;
+      const dt = d ? new Date(d) : null;
+      const yearStr = dt ? String(dt.getFullYear()) : "";
+      const matchYear = yearFilter === "all" || yearStr === yearFilter;
       return matchTeam && matchYear;
     });
   }, [allTenders, teamFilter, yearFilter]);
@@ -71,7 +74,17 @@ export default function Analytics() {
   }, [tenders]);
 
   const years = useMemo(() => {
-    const ys = [...new Set(allTenders.map((t) => t.year).filter(Boolean))].sort();
+    const ys = [
+      ...new Set(
+        allTenders
+          .map((t) => {
+            const d = t.submission_date || t.date || t.created_date;
+            const dt = d ? new Date(d) : null;
+            return dt ? String(dt.getFullYear()) : null;
+          })
+          .filter(Boolean)
+      ),
+    ].sort();
     return ys;
   }, [allTenders]);
 
@@ -118,7 +131,9 @@ export default function Analytics() {
               <SelectContent>
                 <SelectItem value="all">All Years</SelectItem>
                 {years.map((y) => (
-                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

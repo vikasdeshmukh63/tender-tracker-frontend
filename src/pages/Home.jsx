@@ -1,9 +1,23 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, FileSearch } from "lucide-react";
 import TeamCard from "../components/home/TeamCard";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "../utils";
 
 export default function Home() {
+  const navigate = useNavigate();
+
+  // If user is already logged in, do not allow access to Home; redirect to their dashboard
+  useEffect(() => {
+    const userStr = localStorage.getItem("esds_user");
+    if (userStr) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const team = urlParams.get("team") || "sales";
+      navigate(createPageUrl(`Dashboard?team=${team}`), { replace: true });
+    }
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-emerald-50/20 flex items-center justify-center p-4 md:p-8 relative overflow-hidden">
       {/* Animated gradient orbs */}

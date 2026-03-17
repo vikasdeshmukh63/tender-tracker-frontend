@@ -149,63 +149,6 @@ export async function sendTenderDeadlineEmail(tender, hoursLeft = 48, dateField 
 }
 
 /**
- * Send email alert when a tender's work_status changes
- */
-export async function sendWorkStatusChangedEmail(tender, oldStatus, newStatus) {
-  const recipients = [
-    tender.sales_person,
-    tender.regional_sales_manager,
-    tender.senior_solution_architect,
-    tender.solution_architect_assigned,
-  ]
-    .filter(Boolean)
-    .filter((r) => r.includes("@esds.co.in"));
-
-  const uniqueRecipients = [...new Set(recipients)];
-  if (!uniqueRecipients.length) return;
-
-  const statusLabels = {
-    submitted: "Submitted",
-    work_in_progress: "Work in Progress",
-  };
-
-  const oldLabel = statusLabels[oldStatus] || oldStatus;
-  const newLabel = statusLabels[newStatus] || newStatus;
-
-  const subject = `Tender Work Status Update: ${tender.tender_name} → ${newLabel}`;
-  const body = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #0f172a; padding: 24px; border-radius: 8px 8px 0 0;">
-        <h2 style="color: white; margin: 0;">Tender Work Status Updated</h2>
-      </div>
-      <div style="background: #f8fafc; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e2e8f0;">
-        <p style="color: #374151; font-size: 16px;">
-          The work status for the following tender has changed from
-          <strong style="color:#6b7280;">${oldLabel}</strong> to
-          <strong style="color:#1e3a8a;">${newLabel}</strong>:
-        </p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr><td style="padding: 8px; color: #6b7280; width: 40%;">Tender Name</td><td style="padding: 8px; font-weight: bold; color: #111827;">${tender.tender_name}</td></tr>
-          <tr style="background:#fff;"><td style="padding: 8px; color: #6b7280;">POT ID</td><td style="padding: 8px; color: #111827;">${tender.pot_id || "—"}</td></tr>
-          <tr><td style="padding: 8px; color: #6b7280;">Client</td><td style="padding: 8px; color: #111827;">${tender.client_name || "—"}</td></tr>
-          <tr style="background:#fff;"><td style="padding: 8px; color: #6b7280;">Sales Person</td><td style="padding: 8px; color: #111827;">${tender.sales_person || "—"}</td></tr>
-          <tr><td style="padding: 8px; color: #6b7280;">Regional Sales Manager</td><td style="padding: 8px; color: #111827;">${tender.regional_sales_manager || "—"}</td></tr>
-          <tr style="background:#fff;"><td style="padding: 8px; color: #6b7280;">Estimated Value</td><td style="padding: 8px; color: #111827;">${tender.estimated_value ? `&#8377;${Number(tender.estimated_value).toLocaleString("en-IN")}` : "—"}</td></tr>
-          <tr><td style="padding: 8px; color: #6b7280;">New Work Status</td><td style="padding: 8px; font-weight: bold; color: #1e3a8a;">${newLabel}</td></tr>
-        </table>
-        <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Please log in to the ESDS Tender Tracker to view full details.</p>
-      </div>
-    </div>
-  `;
-
-  await Promise.all(
-    uniqueRecipients.map((to) =>
-      base44.integrations.Core.SendEmail({ to, subject, body, from_name: "ESDS Tender Tracker" })
-    )
-  );
-}
-
-/**
  * Send email alert when a task deadline is approaching (≤ threshold days)
  */
 export async function sendTaskDueEmail(task, daysLeft) {

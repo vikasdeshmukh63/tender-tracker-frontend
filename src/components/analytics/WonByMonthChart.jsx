@@ -8,10 +8,10 @@ export default function WonByMonthChart({ tenders }) {
     const won = tenders.filter((t) => t.status === "won");
     const map = {};
     won.forEach((t) => {
-      const key = t.month || (t.date ? MONTHS[new Date(t.date).getMonth()] : null);
-      const yr = t.year || (t.date ? String(new Date(t.date).getFullYear()) : "");
-      if (!key) return;
-      const label = `${key.slice(0,3)} ${yr.slice(2)}`;
+      const d = t.submission_date || t.date || t.created_date;
+      if (!d) return;
+      const dt = new Date(d);
+      const label = `${MONTHS[dt.getMonth()]} ${String(dt.getFullYear()).slice(2)}`;
       if (!map[label]) map[label] = { label, count: 0, value: 0 };
       map[label].count++;
       map[label].value += t.estimated_value || 0;

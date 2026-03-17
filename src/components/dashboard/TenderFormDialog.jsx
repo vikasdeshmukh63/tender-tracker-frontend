@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import api from "@/api/client";
 
 const defaultForm = {
   opp_type: "",
@@ -23,8 +24,7 @@ const defaultForm = {
   pot_id: "",
   tender_name: "",
   date: "",
-  month: "",
-  year: "",
+  submission_date: "",
   regional_sales_manager: "",
   sales_person: "",
   senior_solution_architect: "",
@@ -33,7 +33,6 @@ const defaultForm = {
   prebid_date: "",
   presentation_date: "",
   meeting_date: "",
-  work_status: "",
   priority: "medium",
   estimated_value: "",
   client_name: "",
@@ -41,6 +40,12 @@ const defaultForm = {
 
 export default function TenderFormDialog({ open, onClose, onSave, tender, team, userData }) {
   const [form, setForm] = useState(defaultForm);
+  const [salesProfiles, setSalesProfiles] = useState([]);
+  const [presalesProfiles, setPresalesProfiles] = useState([]);
+  const [salesManagerSearch, setSalesManagerSearch] = useState("");
+  const [salesPersonSearch, setSalesPersonSearch] = useState("");
+  const [seniorSaSearch, setSeniorSaSearch] = useState("");
+  const [assignedSaSearch, setAssignedSaSearch] = useState("");
 
   useEffect(() => {
     if (tender) {
@@ -50,6 +55,68 @@ export default function TenderFormDialog({ open, onClose, onSave, tender, team, 
       setForm({ ...defaultForm, solution_architect_employee_number: userData?.employeeNumber || "" });
     }
   }, [tender, open, userData]);
+
+  // Load sales & presales profiles when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    const load = async () => {
+      try {
+        const [salesRes, presalesRes] = await Promise.all([
+          api.get("/user-profiles", { params: { team: "sales" } }),
+          api.get("/user-profiles", { params: { team: "presales" } }),
+        ]);
+        setSalesProfiles(salesRes.data || []);
+        setPresalesProfiles(presalesRes.data || []);
+      } catch (err) {
+        console.error("Failed to load user profiles for tender form", err);
+      }
+    };
+    load();
+  }, [open]);
+
+  const filteredSalesForManager = useMemo(() => {
+    const q = salesManagerSearch.toLowerCase();
+    const current = form.regional_sales_manager || "";
+    return salesProfiles.filter((p) => {
+      const label = (p.full_name || p.email || "").toString();
+      if (label === current) return true;
+      if (!q) return true;
+      return label.toLowerCase().includes(q);
+    });
+  }, [salesProfiles, salesManagerSearch, form.regional_sales_manager]);
+
+  const filteredSalesForPerson = useMemo(() => {
+    const q = salesPersonSearch.toLowerCase();
+    const current = form.sales_person || "";
+    return salesProfiles.filter((p) => {
+      const label = (p.full_name || p.email || "").toString();
+      if (label === current) return true;
+      if (!q) return true;
+      return label.toLowerCase().includes(q);
+    });
+  }, [salesProfiles, salesPersonSearch, form.sales_person]);
+
+  const filteredPresalesForSenior = useMemo(() => {
+    const q = seniorSaSearch.toLowerCase();
+    const current = form.senior_solution_architect || "";
+    return presalesProfiles.filter((p) => {
+      const label = (p.full_name || p.email || "").toString();
+      if (label === current) return true;
+      if (!q) return true;
+      return label.toLowerCase().includes(q);
+    });
+  }, [presalesProfiles, seniorSaSearch, form.senior_solution_architect]);
+
+  const filteredPresalesForAssigned = useMemo(() => {
+    const q = assignedSaSearch.toLowerCase();
+    const current = form.solution_architect_assigned || "";
+    return presalesProfiles.filter((p) => {
+      const label = (p.full_name || p.email || "").toString();
+      if (label === current) return true;
+      if (!q) return true;
+      return label.toLowerCase().includes(q);
+    });
+  }, [presalesProfiles, assignedSaSearch, form.solution_architect_assigned]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -122,7 +189,7 @@ export default function TenderFormDialog({ open, onClose, onSave, tender, team, 
             </div>
 
             <div className="space-y-1.5">
-              <Label>Date *</Label>
+              <Label>Tender Date *</Label>
               <Input
                 type="date"
                 value={form.date}
@@ -132,63 +199,136 @@ export default function TenderFormDialog({ open, onClose, onSave, tender, team, 
             </div>
 
             <div className="space-y-1.5">
-              <Label>Month *</Label>
+              <Label>Submission Date</Label>
               <Input
-                value={form.month}
-                onChange={(e) => set("month", e.target.value)}
-                placeholder="e.g., January"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Year *</Label>
-              <Input
-                value={form.year}
-                onChange={(e) => set("year", e.target.value)}
-                placeholder="e.g., 2026"
-                required
+                type="date"
+                value={form.submission_date || ""}
+                onChange={(e) => set("submission_date", e.target.value)}
               />
             </div>
 
             <div className="space-y-1.5">
               <Label>Regional Sales Manager *</Label>
-              <Input
-                value={form.regional_sales_manager}
-                onChange={(e) => set("regional_sales_manager", e.target.value)}
-                placeholder="Manager name"
+              <Select
+                value={form.regional_sales_manager || ""}
+                onValueChange={(v) => set("regional_sales_manager", v)}
                 required
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1">
+                    <Input
+                      placeholder="Search sales..."
+                      value={salesManagerSearch}
+                      onChange={(e) => setSalesManagerSearch(e.target.value)}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  {filteredSalesForManager.map((p) => {
+                    const label = p.full_name || p.email;
+                    return (
+                      <SelectItem key={p.id} value={label}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label>Sales Person *</Label>
-              <Input
-                value={form.sales_person}
-                onChange={(e) => set("sales_person", e.target.value)}
-                placeholder="Sales person name"
+              <Select
+                value={form.sales_person || ""}
+                onValueChange={(v) => set("sales_person", v)}
                 required
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sales person" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1">
+                    <Input
+                      placeholder="Search sales..."
+                      value={salesPersonSearch}
+                      onChange={(e) => setSalesPersonSearch(e.target.value)}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  {filteredSalesForPerson.map((p) => {
+                    const label = p.full_name || p.email;
+                    return (
+                      <SelectItem key={p.id} value={label}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label>Senior Solution Architect *</Label>
-              <Input
-                value={form.senior_solution_architect}
-                onChange={(e) => set("senior_solution_architect", e.target.value)}
-                placeholder="Senior architect name"
+              <Select
+                value={form.senior_solution_architect || ""}
+                onValueChange={(v) => set("senior_solution_architect", v)}
                 required
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select senior architect" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1">
+                    <Input
+                      placeholder="Search presales..."
+                      value={seniorSaSearch}
+                      onChange={(e) => setSeniorSaSearch(e.target.value)}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  {filteredPresalesForSenior.map((p) => {
+                    const label = p.full_name || p.email;
+                    return (
+                      <SelectItem key={p.id} value={label}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label>Solution Architect Assigned *</Label>
-              <Input
-                value={form.solution_architect_assigned}
-                onChange={(e) => set("solution_architect_assigned", e.target.value)}
-                placeholder="Assigned architect"
+              <Select
+                value={form.solution_architect_assigned || ""}
+                onValueChange={(v) => set("solution_architect_assigned", v)}
                 required
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assigned architect" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1">
+                    <Input
+                      placeholder="Search presales..."
+                      value={assignedSaSearch}
+                      onChange={(e) => setAssignedSaSearch(e.target.value)}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  {filteredPresalesForAssigned.map((p) => {
+                    const label = p.full_name || p.email;
+                    return (
+                      <SelectItem key={p.id} value={label}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
@@ -229,16 +369,6 @@ export default function TenderFormDialog({ open, onClose, onSave, tender, team, 
                 required
               />
             </div>
-
-            <div className="space-y-1.5">
-               <Label>Work Status *</Label>
-               <Select value={form.work_status || ""} onValueChange={(v) => set("work_status", v)} required>
-                 <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="work_in_progress">Mark as Not Submitted</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
 
             <div className="space-y-1.5">
               <Label>Priority *</Label>

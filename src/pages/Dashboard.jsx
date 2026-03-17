@@ -39,7 +39,7 @@ import TenderCalendar from "../components/dashboard/TenderCalendar";
 import NotificationBell from "../components/notifications/NotificationBell";
 import { useNotificationChecker } from "../components/notifications/useNotificationChecker";
 import * as XLSX from "xlsx";
-import { sendTenderSubmittedEmail, sendTenderDeadlineEmail, sendWorkStatusChangedEmail } from "../components/lib/emailAlerts";
+import { sendTenderSubmittedEmail, sendTenderDeadlineEmail } from "../components/lib/emailAlerts";
 import api from "@/api/client";
 
 export default function Dashboard() {
@@ -54,6 +54,13 @@ export default function Dashboard() {
   React.useEffect(() => {
     if (!userData) {
       navigate(createPageUrl(`Auth?team=${team}`));
+      return;
+    }
+
+    // Enforce team-based access: a user registered for one team
+    // cannot access dashboards of the other team.
+    if (userData.team && userData.team !== team) {
+      navigate(createPageUrl(`Auth?team=${userData.team}`), { replace: true });
     }
   }, [userData, navigate, team]);
 
@@ -62,9 +69,9 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [employeeNumberFilter, setEmployeeNumberFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
-  const [employeeNumberFilter, setEmployeeNumberFilter] = useState("");
   const [activeTab, setActiveTab] = useState("tenders");
 
   const queryClient = useQueryClient();
@@ -105,25 +112,6 @@ export default function Dashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tenders", team] }),
   });
 
-  const submitMutation = useMutation({
-    mutationFn: ({ id, status }) => api.put(`/tenders/${id}`, { work_status: status }).then((r) => r.data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["tenders", team] });
-      const tender = tenders.find((t) => t.id === variables.id);
-      if (tender) {
-        const oldStatus = tender.work_status;
-        const newStatus = variables.status;
-        if (oldStatus !== newStatus) {
-          sendWorkStatusChangedEmail(tender, oldStatus, newStatus);
-        }
-        // Legacy: also send submitted email when work_status → submitted
-        if (newStatus === "submitted") {
-          sendTenderSubmittedEmail(tender);
-        }
-      }
-    },
-  });
-
   const statusChangeMutation = useMutation({
     mutationFn: ({ id, status }) => api.put(`/tenders/${id}`, { status }).then((r) => r.data),
     onSuccess: () => {
@@ -140,21 +128,29 @@ export default function Dashboard() {
   };
 
   const filtered = useMemo(() => {
-   return tenders.filter((t) => {
-     const matchesSearch =
-       !searchQuery ||
-       t.tender_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       t.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       t.pot_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       t.sales_person?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       t.regional_sales_manager?.toLowerCase().includes(searchQuery.toLowerCase());
-     const matchesStatus = statusFilter === "all" || t.status === statusFilter;
-     const matchesMonth = !monthFilter || t.month === monthFilter;
-     const matchesYear = !yearFilter || t.year === yearFilter;
-     const matchesEmployeeNumber = !employeeNumberFilter || t.solution_architect_assigned?.includes(employeeNumberFilter);
-     return matchesSearch && matchesStatus && matchesMonth && matchesYear && matchesEmployeeNumber;
-   });
-  }, [tenders, searchQuery, statusFilter, monthFilter, yearFilter, employeeNumberFilter]);
+    return tenders.filter((t) => {
+      const matchesSearch =
+        !searchQuery ||
+        t.tender_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.pot_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.sales_person?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.regional_sales_manager?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus = statusFilter === "all" || t.status === statusFilter;
+      const matchesEmployeeNumber =
+        !employeeNumberFilter || t.solution_architect_assigned?.includes(employeeNumberFilter);
+
+      const d = t.submission_date || t.date || t.created_date;
+      const dt = d ? new Date(d) : null;
+      const monthName = dt ? dt.toLocaleString("en-US", { month: "long" }) : "";
+      const yearStr = dt ? String(dt.getFullYear()) : "";
+      const matchesMonth = !monthFilter || monthName === monthFilter;
+      const matchesYear = !yearFilter || yearStr === yearFilter;
+
+      return matchesSearch && matchesStatus && matchesEmployeeNumber && matchesMonth && matchesYear;
+    });
+  }, [tenders, searchQuery, statusFilter, employeeNumberFilter, monthFilter, yearFilter]);
 
   const stats = useMemo(() => {
     const total = tenders.length;
@@ -187,10 +183,7 @@ export default function Dashboard() {
   };
 
   const handleExportExcel = () => {
-    let filteredData = filtered;
-    if (monthFilter) filteredData = filteredData.filter((t) => t.month === monthFilter);
-    if (yearFilter) filteredData = filteredData.filter((t) => t.year === yearFilter);
-
+    const filteredData = filtered;
     const wb = XLSX.utils.book_new();
     const ws = {};
 
@@ -207,7 +200,7 @@ export default function Dashboard() {
       right:  { style: "medium", color: { rgb: "000000" } },
     };
 
-    const numCols = 19;
+    const numCols = 17;
 
     // ── Row 1: Watermark / title ──
     ws["A1"] = {
@@ -254,7 +247,7 @@ export default function Dashboard() {
     // ── Row 4: Column headers ──
     const headers = [
       "Sr No.", "POT ID", "Tender Name", "Client Name", "Status", "Priority",
-      "OPP Type", "Date", "Month", "Year",
+      "OPP Type", "Date",
       "Regional Sales Manager", "Sales Person",
       "Senior Solution Architect", "Solution Architect Assigned", "Employee Number",
       "Prebid Date", "Presentation Date", "Meeting Date", "Work Status",
@@ -294,8 +287,6 @@ export default function Dashboard() {
         t.priority || "",
         (t.opp_type || "").replace(/_/g, " "),
         t.date || "",
-        t.month || "",
-        t.year || "",
         t.regional_sales_manager || "",
         t.sales_person || "",
         t.senior_solution_architect || "",
@@ -304,7 +295,6 @@ export default function Dashboard() {
         t.prebid_date || "",
         t.presentation_date || "",
         t.meeting_date || "",
-        (t.work_status || "").replace(/_/g, " "),
       ];
 
       values.forEach((val, ci) => {
@@ -336,8 +326,6 @@ export default function Dashboard() {
       { wch: 10 }, // Priority
       { wch: 14 }, // OPP Type
       { wch: 12 }, // Date
-      { wch: 10 }, // Month
-      { wch: 7 },  // Year
       { wch: 22 }, // Regional Sales Manager
       { wch: 18 }, // Sales Person
       { wch: 26 }, // Senior Solution Architect
@@ -358,13 +346,7 @@ export default function Dashboard() {
 
     XLSX.utils.book_append_sheet(wb, ws, "Tenders");
 
-    const fileName = monthFilter && yearFilter
-      ? `${team}_tenders_${monthFilter}_${yearFilter}.xlsx`
-      : yearFilter
-      ? `${team}_tenders_${yearFilter}.xlsx`
-      : monthFilter
-      ? `${team}_tenders_${monthFilter}.xlsx`
-      : `${team}_tenders_${new Date().toISOString().split("T")[0]}.xlsx`;
+    const fileName = `${team}_tenders_${new Date().toISOString().split("T")[0]}.xlsx`;
 
     XLSX.writeFile(wb, fileName, { cellStyles: true, bookSST: false });
   };

@@ -47,7 +47,7 @@ export default function ImportExcelDialog({ open, onClose, onImport }) {
             return;
           }
 
-          // Map Excel columns to tender fields
+          // Map Excel columns to tender fields (month/year removed)
           const tenders = jsonData.map((row) => ({
             pot_id: row["POT ID"] || row["pot_id"] || "",
             tender_name: row["Tender Name"] || row["tender_name"] || "",
@@ -56,8 +56,6 @@ export default function ImportExcelDialog({ open, onClose, onImport }) {
             priority: row["Priority"] || row["priority"] || "medium",
             opp_type: row["OPP Type"] || row["opp_type"] || "new_business",
             date: row["Date"] || row["date"] || "",
-            month: row["Month"] || row["month"] || "",
-            year: row["Year"] || row["year"] || "",
             regional_sales_manager: row["Regional Sales Manager"] || row["regional_sales_manager"] || "",
             sales_person: row["Sales Person"] || row["sales_person"] || "",
             senior_solution_architect: row["Senior Solution Architect"] || row["senior_solution_architect"] || "",
@@ -65,7 +63,6 @@ export default function ImportExcelDialog({ open, onClose, onImport }) {
             prebid_date: row["Prebid Date"] || row["prebid_date"] || "",
             presentation_date: row["Presentation Date"] || row["presentation_date"] || "",
             meeting_date: row["Meeting Date"] || row["meeting_date"] || "",
-            work_status: row["Work Status"] || row["work_status"] || "work_in_progress",
             estimated_value: row["Estimated Value"] || row["estimated_value"] || 0,
           }));
 

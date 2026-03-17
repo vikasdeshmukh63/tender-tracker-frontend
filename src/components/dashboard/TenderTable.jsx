@@ -71,8 +71,6 @@ export default function TenderTable({ tenders, onDelete, onSubmit, team, onEmplo
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">POT ID</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Tender Name</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Date</TableHead>
-              <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Month</TableHead>
-              <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Year</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Regional Sales Manager</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Sales Person</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Senior Solution Architect</TableHead>
@@ -82,7 +80,6 @@ export default function TenderTable({ tenders, onDelete, onSubmit, team, onEmplo
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Presentation Date</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Meeting Date</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Submission Date</TableHead>
-              <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300">Work Status</TableHead>
               <TableHead className="font-semibold text-gray-600 text-xs uppercase tracking-wider border border-gray-300 w-16"></TableHead>
             </TableRow>
           </TableHeader>
@@ -148,8 +145,6 @@ export default function TenderTable({ tenders, onDelete, onSubmit, team, onEmplo
                   <TableCell className="text-gray-600 border border-gray-300">
                     {tender.date ? format(new Date(tender.date), "dd MMM yy") : "—"}
                   </TableCell>
-                  <TableCell className="text-gray-600 border border-gray-300">{tender.month || "—"}</TableCell>
-                  <TableCell className="text-gray-600 border border-gray-300">{tender.year || "—"}</TableCell>
                   <TableCell className="text-gray-600 border border-gray-300">{tender.regional_sales_manager || "—"}</TableCell>
                   <TableCell className="text-gray-600 border border-gray-300">{tender.sales_person || "—"}</TableCell>
                   <TableCell className="text-gray-600 border border-gray-300">{tender.senior_solution_architect || "—"}</TableCell>
@@ -220,28 +215,6 @@ export default function TenderTable({ tenders, onDelete, onSubmit, team, onEmplo
                   <TableCell className="text-gray-600 border border-gray-300">
                     {tender.submission_date ? format(new Date(tender.submission_date), "dd MMM yy") : "—"}
                   </TableCell>
-                  <TableCell className="border border-gray-300">
-                     <DropdownMenu>
-                       <DropdownMenuTrigger asChild>
-                         <button className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-medium text-xs cursor-pointer transition-colors ${
-                           tender.work_status === "submitted" 
-                             ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100" 
-                             : "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
-                         }`}>
-                           {tender.work_status === "submitted" ? "Submitted" : "Not Submitted"}
-                           <ChevronDown className="w-3.5 h-3.5" />
-                         </button>
-                       </DropdownMenuTrigger>
-                       <DropdownMenuContent>
-                         <DropdownMenuItem onClick={() => onSubmit(tender.id, "submitted")}>
-                           Submitted
-                         </DropdownMenuItem>
-                         <DropdownMenuItem onClick={() => onSubmit(tender.id, "work_in_progress")}>
-                           Not Submitted
-                         </DropdownMenuItem>
-                       </DropdownMenuContent>
-                     </DropdownMenu>
-                   </TableCell>
                   <TableCell className="border border-gray-300">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

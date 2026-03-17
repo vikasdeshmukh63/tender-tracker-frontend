@@ -17,12 +17,10 @@ export default function PipelineByMonthChart({ tenders }) {
   const data = useMemo(() => {
     const map = {};
     tenders.forEach((t) => {
-      const key = t.month
-        ? `${t.month.slice(0, 3)} ${(t.year || "").slice(2)}`
-        : t.date
-        ? `${MONTHS[new Date(t.date).getMonth()]} ${String(new Date(t.date).getFullYear()).slice(2)}`
-        : null;
-      if (!key) return;
+      const d = t.submission_date || t.date || t.created_date;
+      if (!d) return;
+      const dt = new Date(d);
+      const key = `${MONTHS[dt.getMonth()]} ${String(dt.getFullYear()).slice(2)}`;
       if (!map[key]) map[key] = { label: key, pipeline: 0, won: 0, lost: 0, count: 0 };
       map[key].pipeline += t.estimated_value || 0;
       map[key].count++;

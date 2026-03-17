@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import TenderFormDialog from "../components/dashboard/TenderFormDialog";
-import { sendTenderSubmittedEmail, sendTaskAssignedEmail, sendWorkStatusChangedEmail } from "../components/lib/emailAlerts";
+import { sendTenderSubmittedEmail, sendTaskAssignedEmail } from "../components/lib/emailAlerts";
 import TaskFormDialog from "../components/tasks/TaskFormDialog";
 import TaskList from "../components/tasks/TaskList";
 import TenderAuditLog from "../components/tenderdetail/TenderAuditLog";
@@ -113,9 +113,6 @@ export default function TenderDetail() {
       const updatedTender = { ...tender, ...data };
       if (data?.status === "submitted" && tender) {
         sendTenderSubmittedEmail(updatedTender);
-      }
-      if (data?.work_status && tender && data.work_status !== tender.work_status) {
-        sendWorkStatusChangedEmail(updatedTender, tender.work_status, data.work_status);
       }
     },
   });

@@ -9,7 +9,6 @@ const TRACKED_FIELDS = {
   regional_sales_manager: "Regional Sales Manager",
   senior_solution_architect: "Senior Solution Architect",
   solution_architect_assigned: "Solution Architect Assigned",
-  work_status: "Work Status",
   team: "Team",
   tender_name: "Tender Name",
   prebid_date: "Prebid Date",

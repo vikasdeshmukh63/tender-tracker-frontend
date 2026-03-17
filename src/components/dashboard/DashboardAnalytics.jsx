@@ -27,26 +27,24 @@ export default function DashboardAnalytics({ tenders }) {
   const [statusFilter, setStatusFilter] = useState("All Time");
   const [oppFilter, setOppFilter] = useState("All Time");
 
-  // Value won/lost per month
+  // Value won/lost per month (based on submission_date/date/created_date)
   const monthlyData = useMemo(() => {
     const startDate = getDateRangeFromFilter(barFilter);
     const map = {};
     tenders.forEach((t) => {
-      if (startDate && t.created_date) {
-        const createdDate = new Date(t.created_date);
-        if (createdDate < startDate) return;
-      }
-      if (!t.month || !t.year) return;
-      const key = `${t.month} ${t.year}`;
-      if (!map[key]) map[key] = { label: key, month: t.month, year: t.year, won: 0, lost: 0, total: 0 };
+      const d = t.submission_date || t.date || t.created_date;
+      if (!d) return;
+      const dt = new Date(d);
+      if (startDate && dt < startDate) return;
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (!map[key]) map[key] = { label: key, won: 0, lost: 0, total: 0 };
       map[key].total += t.estimated_value || 0;
       if (t.status === "won") map[key].won += t.estimated_value || 0;
       if (t.status === "lost") map[key].lost += t.estimated_value || 0;
     });
-    return Object.values(map).sort((a, b) => {
-      if (a.year !== b.year) return Number(a.year) - Number(b.year);
-      return MONTHS_ORDER.indexOf(a.month) - MONTHS_ORDER.indexOf(b.month);
-    }).slice(-8);
+    return Object.values(map)
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .slice(-8);
   }, [tenders, barFilter]);
 
   // Conversion rates by status
@@ -92,20 +90,19 @@ export default function DashboardAnalytics({ tenders }) {
     const startDate = getDateRangeFromFilter(winRateFilter);
     const map = {};
     tenders.forEach((t) => {
-      if (startDate && t.created_date) {
-        const createdDate = new Date(t.created_date);
-        if (createdDate < startDate) return;
-      }
-      if (!t.month || !t.year) return;
-      const key = `${t.month} ${t.year}`;
-      if (!map[key]) map[key] = { label: key, month: t.month, year: t.year, total: 0, won: 0 };
+      const d = t.submission_date || t.date || t.created_date;
+      if (!d) return;
+      const dt = new Date(d);
+      if (startDate && dt < startDate) return;
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (!map[key]) map[key] = { label: key, total: 0, won: 0 };
       map[key].total += 1;
       if (t.status === "won") map[key].won += 1;
     });
-    return Object.values(map).sort((a, b) => {
-      if (a.year !== b.year) return Number(a.year) - Number(b.year);
-      return MONTHS_ORDER.indexOf(a.month) - MONTHS_ORDER.indexOf(b.month);
-    }).slice(-8).map((d) => ({
+    return Object.values(map)
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .slice(-8)
+      .map((d) => ({
       ...d,
       winRate: d.total ? Math.round((d.won / d.total) * 100) : 0,
     }));
