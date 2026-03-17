@@ -1,0 +1,139 @@
+{
+  "name": "Tender",
+  "type": "object",
+  "properties": {
+    "opp_type": {
+      "type": "string",
+      "enum": [
+        "new_business",
+        "renewal",
+        "upsell",
+        "cross_sell"
+      ],
+      "description": "Opportunity type"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "in_progress",
+        "submitted",
+        "won",
+        "lost",
+        "on_hold"
+      ],
+      "default": "new",
+      "description": "Current status of the tender"
+    },
+    "pot_id": {
+      "type": "string",
+      "description": "Potential/Opportunity ID"
+    },
+    "tender_name": {
+      "type": "string",
+      "description": "Name of the tender"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Tender date"
+    },
+    "month": {
+      "type": "string",
+      "description": "Month"
+    },
+    "year": {
+      "type": "string",
+      "description": "Year"
+    },
+    "regional_sales_manager": {
+      "type": "string",
+      "description": "Regional Sales Manager name"
+    },
+    "sales_person": {
+      "type": "string",
+      "description": "Sales Person assigned"
+    },
+    "senior_solution_architect": {
+      "type": "string",
+      "description": "Senior Solution Architect"
+    },
+    "solution_architect_assigned": {
+      "type": "string",
+      "description": "Solution Architect Assigned"
+    },
+    "solution_architect_employee_number": {
+      "type": "string",
+      "description": "Employee number of assigned solution architect"
+    },
+    "prebid_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Prebid meeting date"
+    },
+    "presentation_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Presentation date"
+    },
+    "meeting_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Meeting date"
+    },
+    "work_status": {
+      "type": "string",
+      "enum": [
+        "submitted",
+        "work_in_progress"
+      ],
+      "description": "Work submission status"
+    },
+    "team": {
+      "type": "string",
+      "enum": [
+        "sales",
+        "presales"
+      ],
+      "description": "Assigned team"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "estimated_value": {
+      "type": "number",
+      "description": "Estimated deal value in INR"
+    },
+    "client_name": {
+      "type": "string",
+      "description": "Client or organization name"
+    }
+  },
+  "required": [
+    "opp_type",
+    "status",
+    "pot_id",
+    "tender_name",
+    "date",
+    "month",
+    "year",
+    "regional_sales_manager",
+    "sales_person",
+    "senior_solution_architect",
+    "solution_architect_assigned",
+    "prebid_date",
+    "presentation_date",
+    "meeting_date",
+    "work_status",
+    "team",
+    "priority",
+    "client_name"
+  ]
+}

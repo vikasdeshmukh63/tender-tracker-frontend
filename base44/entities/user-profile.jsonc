@@ -1,0 +1,42 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "User's email address (unique key)"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Full name of the user"
+    },
+    "employee_number": {
+      "type": "string",
+      "description": "Employee number"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "team_lead",
+        "admin"
+      ],
+      "description": "User role"
+    },
+    "designation": {
+      "type": "string",
+      "description": "Job designation"
+    },
+    "team": {
+      "type": "string",
+      "enum": [
+        "sales",
+        "presales"
+      ],
+      "description": "Team the user belongs to"
+    }
+  },
+  "required": [
+    "email"
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "name": "NotificationRule",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "due_date",
+        "status_change",
+        "task_due"
+      ],
+      "default": "due_date"
+    },
+    "threshold_days": {
+      "type": "number",
+      "default": 3,
+      "description": "Days before due date to alert"
+    },
+    "date_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Date fields to watch (prebid_date, presentation_date, meeting_date)"
+    },
+    "watch_statuses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tender statuses to trigger alerts on"
+    },
+    "send_email": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "user_email",
+    "type"
+  ]
+}

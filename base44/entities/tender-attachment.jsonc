@@ -1,0 +1,44 @@
+{
+  "name": "TenderAttachment",
+  "type": "object",
+  "properties": {
+    "tender_id": {
+      "type": "string",
+      "description": "ID of the related tender"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original file name"
+    },
+    "file_size": {
+      "type": "number",
+      "description": "File size in bytes"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "rfp",
+        "proposal",
+        "quote",
+        "technical",
+        "commercial",
+        "contract",
+        "other"
+      ],
+      "description": "Type of document"
+    },
+    "uploaded_by": {
+      "type": "string",
+      "description": "Email of user who uploaded"
+    }
+  },
+  "required": [
+    "tender_id",
+    "file_url",
+    "file_name"
+  ]
+}

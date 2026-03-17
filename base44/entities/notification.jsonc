@@ -1,0 +1,45 @@
+{
+  "name": "Notification",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the recipient"
+    },
+    "tender_id": {
+      "type": "string",
+      "description": "Related tender ID"
+    },
+    "tender_name": {
+      "type": "string",
+      "description": "Tender name for display"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "due_date",
+        "status_change",
+        "task_due"
+      ],
+      "description": "Notification type"
+    },
+    "message": {
+      "type": "string",
+      "description": "Notification message"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false
+    },
+    "dedup_key": {
+      "type": "string",
+      "description": "Prevents duplicate notifications"
+    }
+  },
+  "required": [
+    "user_email",
+    "type",
+    "message",
+    "dedup_key"
+  ]
+}

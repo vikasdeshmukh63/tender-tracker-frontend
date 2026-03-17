@@ -1,0 +1,49 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "tender_id": {
+      "type": "string",
+      "description": "Related tender ID"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of user who made the change"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Display name of user"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "created",
+        "updated",
+        "status_changed",
+        "comment"
+      ],
+      "description": "Type of action"
+    },
+    "field_changed": {
+      "type": "string",
+      "description": "Which field was changed (for updates)"
+    },
+    "old_value": {
+      "type": "string",
+      "description": "Previous value"
+    },
+    "new_value": {
+      "type": "string",
+      "description": "New value"
+    },
+    "comment": {
+      "type": "string",
+      "description": "Free-text comment"
+    }
+  },
+  "required": [
+    "tender_id",
+    "user_email",
+    "action"
+  ]
+}
