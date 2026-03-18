@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import api from "@/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils";
@@ -31,7 +31,7 @@ export default function Analytics() {
 
   const { data: allTenders = [], isLoading } = useQuery({
     queryKey: ["analytics-tenders"],
-    queryFn: () => base44.entities.Tender.list("-created_date", 500),
+    queryFn: () => api.get("/tenders").then((r) => r.data),
   });
 
   const tenders = useMemo(() => {

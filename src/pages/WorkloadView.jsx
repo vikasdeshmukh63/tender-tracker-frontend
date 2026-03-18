@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import api from "@/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils";
@@ -27,12 +27,12 @@ export default function WorkloadView() {
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
     queryKey: ["workload-tasks"],
-    queryFn: () => base44.entities.Task.list("-created_date", 500),
+    queryFn: () => api.get("/tasks").then((r) => r.data),
   });
 
   const { data: tenders = [], isLoading: loadingTenders } = useQuery({
     queryKey: ["workload-tenders"],
-    queryFn: () => base44.entities.Tender.list("-created_date", 500),
+    queryFn: () => api.get("/tenders").then((r) => r.data),
   });
 
   const members = useMemo(() => {
