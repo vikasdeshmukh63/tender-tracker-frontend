@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import api from "@/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, Settings, Calendar, RefreshCw, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,24 +28,28 @@ export default function NotificationBell({ userData }) {
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications", userData?.email],
     queryFn: () =>
-      base44.entities.Notification.filter({ user_email: userData.email }, "-created_date", 50),
+      api
+        .get("/notifications", { params: { user_email: userData.email, limit: 50 } })
+        .then((r) => r.data),
     enabled: !!userData?.email,
-    refetchInterval: 60000,
+    refetchInterval: 60_000,
   });
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const markReadMutation = useMutation({
-    mutationFn: (id) => base44.entities.Notification.update(id, { is_read: true }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications", userData?.email] }),
+    mutationFn: (id) => api.put(`/notifications/${id}`, { is_read: true }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["notifications", userData?.email] }),
   });
 
   const markAllReadMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => {
       const unread = notifications.filter((n) => !n.is_read);
-      await Promise.all(unread.map((n) => base44.entities.Notification.update(n.id, { is_read: true })));
+      return Promise.all(unread.map((n) => api.put(`/notifications/${n.id}`, { is_read: true })));
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications", userData?.email] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["notifications", userData?.email] }),
   });
 
   return (
@@ -76,14 +80,19 @@ export default function NotificationBell({ userData }) {
             <div className="flex gap-1">
               {unreadCount > 0 && (
                 <Button
-                  variant="ghost" size="sm" className="h-7 px-2 text-xs"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
                   onClick={() => markAllReadMutation.mutate()}
+                  disabled={markAllReadMutation.isPending}
                 >
                   <CheckCheck className="w-3.5 h-3.5 mr-1" /> All read
                 </Button>
               )}
               <Button
-                variant="ghost" size="icon" className="h-7 w-7"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
                 onClick={() => { setOpen(false); setShowRules(true); }}
                 title="Notification Settings"
               >
@@ -108,6 +117,7 @@ export default function NotificationBell({ userData }) {
               <div className="divide-y">
                 {notifications.map((notif) => {
                   const Icon = TYPE_ICONS[notif.type] || Bell;
+                  const ts = notif.created_at || notif.createdAt || notif.created_date;
                   return (
                     <div
                       key={notif.id}
@@ -120,9 +130,11 @@ export default function NotificationBell({ userData }) {
                           <p className={`text-sm leading-snug ${!notif.is_read ? "font-medium text-gray-900" : "text-gray-600"}`}>
                             {notif.message}
                           </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {formatDistanceToNow(new Date(notif.created_date), { addSuffix: true })}
-                          </p>
+                          {ts && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {formatDistanceToNow(new Date(ts), { addSuffix: true })}
+                            </p>
+                          )}
                         </div>
                         {!notif.is_read && (
                           <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />

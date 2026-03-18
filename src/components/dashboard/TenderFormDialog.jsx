@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import api from "@/api/client";
 
 const defaultForm = {
@@ -38,7 +39,7 @@ const defaultForm = {
   client_name: "",
 };
 
-export default function TenderFormDialog({ open, onClose, onSave, tender, team, userData }) {
+export default function TenderFormDialog({ open, onClose, onSave, tender, team, userData, loading = false }) {
   const [form, setForm] = useState(defaultForm);
   const [salesProfiles, setSalesProfiles] = useState([]);
   const [presalesProfiles, setPresalesProfiles] = useState([]);
@@ -405,14 +406,19 @@ export default function TenderFormDialog({ open, onClose, onSave, tender, team, 
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-[#00A3E0] hover:bg-[#008bbf] text-white"
+              className="bg-[#00A3E0] hover:bg-[#008bbf] text-white min-w-[130px]"
+              disabled={loading}
             >
-              {tender ? "Update Tender" : "Create Tender"}
+              {loading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{tender ? "Updating..." : "Creating..."}</>
+              ) : (
+                tender ? "Update Tender" : "Create Tender"
+              )}
             </Button>
           </div>
         </form>

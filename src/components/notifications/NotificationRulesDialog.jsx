@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import api from "@/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Bell, Mail } from "lucide-react";
+import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
+import { Plus, Trash2, Bell, Mail, Loader2 } from "lucide-react";
 
 const TYPE_LABELS = { due_date: "Due Date Alert", status_change: "Status Change Alert", task_due: "Task Due Alert" };
 const STATUS_OPTIONS = ["new", "in_progress", "submitted", "won", "lost", "on_hold"];
@@ -29,16 +30,21 @@ const DEFAULT_RULE = {
 export default function NotificationRulesDialog({ open, onClose, userData }) {
   const [adding, setAdding] = useState(false);
   const [newRule, setNewRule] = useState(DEFAULT_RULE);
+  const [deleteRuleId, setDeleteRuleId] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: rules = [] } = useQuery({
     queryKey: ["notification-rules", userData?.email],
-    queryFn: () => base44.entities.NotificationRule.filter({ user_email: userData.email }),
+    queryFn: () =>
+      api
+        .get("/notification-rules", { params: { user_email: userData.email } })
+        .then((r) => r.data),
     enabled: !!userData?.email && open,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.NotificationRule.create({ ...data, user_email: userData.email }),
+    mutationFn: (data) =>
+      api.post("/notification-rules", { ...data, user_email: userData.email }).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notification-rules", userData?.email] });
       setAdding(false);
@@ -47,13 +53,19 @@ export default function NotificationRulesDialog({ open, onClose, userData }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.NotificationRule.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notification-rules", userData?.email] }),
+    mutationFn: ({ id, data }) =>
+      api.put(`/notification-rules/${id}`, data).then((r) => r.data),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["notification-rules", userData?.email] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.NotificationRule.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notification-rules", userData?.email] }),
+    mutationFn: (id) => api.delete(`/notification-rules/${id}`).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notification-rules", userData?.email] });
+      setDeleteRuleId(null);
+    },
+    onError: () => setDeleteRuleId(null),
   });
 
   const toggleDateField = (f) =>
@@ -106,7 +118,7 @@ export default function NotificationRulesDialog({ open, onClose, userData }) {
                   />
                   <Button
                     variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600"
-                    onClick={() => deleteMutation.mutate(rule.id)}
+                    onClick={() => setDeleteRuleId(rule.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -195,10 +207,19 @@ export default function NotificationRulesDialog({ open, onClose, userData }) {
               </div>
 
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => createMutation.mutate(newRule)} className="bg-[#00A3E0] hover:bg-[#008bbf] text-white">
-                  Save Rule
+                <Button
+                  size="sm"
+                  onClick={() => createMutation.mutate(newRule)}
+                  className="bg-[#00A3E0] hover:bg-[#008bbf] text-white min-w-[90px]"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? (
+                    <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving...</>
+                  ) : (
+                    "Save Rule"
+                  )}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => { setAdding(false); setNewRule(DEFAULT_RULE); }}>
+                <Button size="sm" variant="outline" onClick={() => { setAdding(false); setNewRule(DEFAULT_RULE); }} disabled={createMutation.isPending}>
                   Cancel
                 </Button>
               </div>
@@ -212,6 +233,15 @@ export default function NotificationRulesDialog({ open, onClose, userData }) {
           )}
         </div>
       </DialogContent>
+
+      <ConfirmDeleteDialog
+        open={deleteRuleId !== null}
+        title="Delete notification rule"
+        description="Are you sure you want to delete this notification rule? You will stop receiving alerts from it."
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(deleteRuleId)}
+        onCancel={() => setDeleteRuleId(null)}
+      />
     </Dialog>
   );
 }

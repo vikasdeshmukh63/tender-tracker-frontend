@@ -112,12 +112,26 @@ export default function Dashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tenders", team] }),
   });
 
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+
   const statusChangeMutation = useMutation({
     mutationFn: ({ id, status }) => api.put(`/tenders/${id}`, { status }).then((r) => r.data),
+    onMutate: ({ id }) => {
+      setStatusUpdatingId(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenders", team] });
     },
+    onSettled: () => {
+      setStatusUpdatingId(null);
+    },
   });
+
+  const isMutating =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending ||
+    statusChangeMutation.isPending;
 
   const handleSave = (formData) => {
     if (editTender) {
@@ -250,7 +264,7 @@ export default function Dashboard() {
       "OPP Type", "Date",
       "Regional Sales Manager", "Sales Person",
       "Senior Solution Architect", "Solution Architect Assigned", "Employee Number",
-      "Prebid Date", "Presentation Date", "Meeting Date", "Work Status",
+      "Prebid Date", "Presentation Date", "Meeting Date",
     ];
 
     headers.forEach((h, ci) => {
@@ -479,6 +493,7 @@ export default function Dashboard() {
                   setEditTender(null);
                   setShowForm(true);
                 }}
+                disabled={isMutating}
                 className="text-white gap-1.5 rounded-lg h-8 text-xs px-3"
                 style={{ backgroundColor: accentColor }}
               >
@@ -609,6 +624,7 @@ export default function Dashboard() {
 
               <Button
                 onClick={handleExportExcel}
+                disabled={isLoading || isMutating}
                 className="rounded-lg gap-1.5 h-8 text-xs px-3 whitespace-nowrap bg-green-100 text-green-700 hover:bg-green-200 border-0"
               >
                 <Download className="w-3.5 h-3.5" /> Export Excel
@@ -624,11 +640,21 @@ export default function Dashboard() {
             ) : (
               <TenderTable
                  tenders={filtered}
-                 onDelete={(id) => deleteMutation.mutate(id)}
-                 onSubmit={(id, status = "submitted") => submitMutation.mutate({ id, status })}
+                 onDelete={(id) => {
+                   if (deleteMutation.isPending) return;
+                   deleteMutation.mutate(id);
+                 }}
                  team={team}
-                 onEmployeeNumberChange={(id, empNo) => updateMutation.mutate({ id, data: { solution_architect_employee_number: empNo } })}
-                 onStatusChange={(id, status) => statusChangeMutation.mutate({ id, status })}
+                 onEmployeeNumberChange={(id, empNo) => {
+                   if (updateMutation.isPending) return;
+                   updateMutation.mutate({ id, data: { solution_architect_employee_number: empNo } });
+                 }}
+                 onStatusChange={(id, status) => {
+                   if (statusChangeMutation.isPending) return;
+                   statusChangeMutation.mutate({ id, status });
+                 }}
+                 isBusy={isMutating}
+                 statusUpdatingId={statusUpdatingId}
                />
             )}
           </>
@@ -650,6 +676,7 @@ export default function Dashboard() {
             setEditTender(null);
           }}
           onSave={handleSave}
+          loading={createMutation.isPending || updateMutation.isPending}
           tender={editTender}
           team={team}
           userData={userData}

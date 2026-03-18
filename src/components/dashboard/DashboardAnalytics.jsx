@@ -16,10 +16,15 @@ const STATUS_COLORS = {
 
 const OPP_COLORS = ["#00A3E0", "#10b981", "#f59e0b", "#6366f1"];
 
-const MONTHS_ORDER = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
-];
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/** Converts "2024-01" → "Jan 24" for x-axis labels */
+const fmtMonthLabel = (v) => {
+  if (!v || !v.includes("-")) return v;
+  const [year, month] = v.split("-");
+  const m = parseInt(month, 10);
+  return `${MONTHS_SHORT[m - 1] ?? "?"} ${String(year).slice(2)}`;
+};
 
 export default function DashboardAnalytics({ tenders }) {
   const [barFilter, setBarFilter] = useState("All Time");
@@ -140,7 +145,7 @@ export default function DashboardAnalytics({ tenders }) {
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={monthlyData} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} tickFormatter={(v) => v.split(" ")[0].slice(0, 3) + " " + v.split(" ")[1]} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} tickFormatter={fmtMonthLabel} />
               <YAxis tickFormatter={fmt} tick={{ fontSize: 10 }} width={55} />
               <Tooltip formatter={(v) => fmt(v)} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -159,7 +164,7 @@ export default function DashboardAnalytics({ tenders }) {
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={winRateTrend} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} tickFormatter={(v) => v.split(" ")[0].slice(0, 3) + " " + v.split(" ")[1]} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} tickFormatter={fmtMonthLabel} />
               <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} unit="%" />
               <Tooltip formatter={(v) => `${v}%`} />
               <Line type="monotone" dataKey="winRate" name="Win Rate" stroke="#6366f1" strokeWidth={2} dot={{ r: 4 }} />

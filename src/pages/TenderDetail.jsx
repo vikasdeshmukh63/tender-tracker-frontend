@@ -19,7 +19,6 @@ import {
   MessageSquare,
   ListTodo,
   Plus,
-  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +26,6 @@ import TenderFormDialog from "../components/dashboard/TenderFormDialog";
 import { sendTenderSubmittedEmail, sendTaskAssignedEmail } from "../components/lib/emailAlerts";
 import TaskFormDialog from "../components/tasks/TaskFormDialog";
 import TaskList from "../components/tasks/TaskList";
-import TenderAuditLog from "../components/tenderdetail/TenderAuditLog";
 import { logTenderUpdate } from "../components/tenderdetail/auditLogger";
 import TenderProgressBar from "../components/tenderdetail/TenderProgressBar";
 import TenderFileUpload from "../components/tenderdetail/TenderFileUpload";
@@ -240,7 +238,6 @@ export default function TenderDetail() {
         <TenderProgressBar
           tender={tender}
           auditLogs={auditLogs}
-          onStatusChange={(newStatus) => updateMutation.mutate({ status: newStatus })}
         />
 
         {/* Tabs */}
@@ -248,7 +245,6 @@ export default function TenderDetail() {
           {[
             { key: "details", label: "Details", icon: FileText },
             { key: "tasks", label: `Tasks (${tasks.length})`, icon: ListTodo },
-            { key: "activity", label: "Activity", icon: History },
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -357,16 +353,18 @@ export default function TenderDetail() {
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
               <ListTodo className="w-3.5 h-3.5" /> Tasks ({tasks.length})
             </h3>
-            <Button
-              onClick={() => {
-                setEditTask(null);
-                setShowTaskForm(true);
-              }}
-              size="sm"
-              className="bg-[#1e3a8a] hover:bg-[#1e40af] gap-1.5 h-7 text-xs"
-            >
-              <Plus className="w-4 h-4" /> Add Task
-            </Button>
+            {(userData.role === "team_lead" || userData.role === "admin") && (
+              <Button
+                onClick={() => {
+                  setEditTask(null);
+                  setShowTaskForm(true);
+                }}
+                size="sm"
+                className="bg-[#1e3a8a] hover:bg-[#1e40af] gap-1.5 h-7 text-xs"
+              >
+                <Plus className="w-4 h-4" /> Add Task
+              </Button>
+            )}
           </div>
 
           {loadingTasks ? (
@@ -387,15 +385,6 @@ export default function TenderDetail() {
         </motion.div>
         )}
 
-        {/* Activity Tab */}
-        {activeTab === "activity" && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <TenderAuditLog tenderId={id} userData={userData} />
-        </motion.div>
-        )}
         </>
 
         {/* Edit dialog */}
@@ -403,21 +392,25 @@ export default function TenderDetail() {
           open={showEdit}
           onClose={() => setShowEdit(false)}
           onSave={(data) => updateMutation.mutate(data)}
+          loading={updateMutation.isPending}
           tender={tender}
           team={team}
         />
 
         {/* Task Form Dialog */}
-        <TaskFormDialog
-          open={showTaskForm}
-          onClose={() => {
-            setShowTaskForm(false);
-            setEditTask(null);
-          }}
-          onSave={handleSaveTask}
-          task={editTask}
-          tenderId={id}
-        />
+        {(userData.role === "team_lead" || userData.role === "admin") && (
+          <TaskFormDialog
+            open={showTaskForm}
+            onClose={() => {
+              setShowTaskForm(false);
+              setEditTask(null);
+            }}
+            onSave={handleSaveTask}
+            loading={createTaskMutation.isPending || updateTaskMutation.isPending}
+            task={editTask}
+            tenderId={id}
+          />
+        )}
       </div>
     </div>
   );

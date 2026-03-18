@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import AssigneeInput from "./AssigneeInput";
 
 const defaultTask = {
@@ -16,7 +17,7 @@ const defaultTask = {
   priority: "medium",
 };
 
-export default function TaskFormDialog({ open, onClose, onSave, task, tenderId }) {
+export default function TaskFormDialog({ open, onClose, onSave, task, tenderId, loading = false }) {
   const [formData, setFormData] = useState(task
     ? { ...task, assignees: task.assignees || (task.assigned_to ? [task.assigned_to] : []) }
     : { ...defaultTask, tender_id: tenderId }
@@ -32,6 +33,7 @@ export default function TaskFormDialog({ open, onClose, onSave, task, tenderId }
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (loading) return;
     onSave({ ...formData, assigned_to: formData.assignees?.[0] || "" });
   };
 
@@ -118,9 +120,15 @@ export default function TaskFormDialog({ open, onClose, onSave, task, tenderId }
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="bg-[#1e3a8a] hover:bg-[#1e40af]">
-              {task ? "Update Task" : "Create Task"}
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" className="bg-[#1e3a8a] hover:bg-[#1e40af] min-w-[120px]" disabled={loading}>
+              {loading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{task ? "Updating..." : "Creating..."}</>
+              ) : (
+                task ? "Update Task" : "Create Task"
+              )}
             </Button>
           </div>
         </form>
