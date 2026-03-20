@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import api from "@/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck, Settings, Calendar, RefreshCw, ClipboardList } from "lucide-react";
+import { Bell, CheckCheck, Settings, Calendar, RefreshCw, ClipboardList, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,12 +12,14 @@ const TYPE_ICONS = {
   due_date: Calendar,
   status_change: RefreshCw,
   task_due: ClipboardList,
+  task_assigned: UserCheck,
 };
 
 const TYPE_COLORS = {
   due_date: "text-orange-500",
   status_change: "text-blue-500",
   task_due: "text-purple-500",
+  task_assigned: "text-emerald-500",
 };
 
 export default function NotificationBell({ userData }) {
@@ -32,7 +34,7 @@ export default function NotificationBell({ userData }) {
         .get("/notifications", { params: { user_email: userData.email, limit: 50 } })
         .then((r) => r.data),
     enabled: !!userData?.email,
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
   });
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -43,11 +45,10 @@ export default function NotificationBell({ userData }) {
       queryClient.invalidateQueries({ queryKey: ["notifications", userData?.email] }),
   });
 
+  // Single request to mark ALL unread as read
   const markAllReadMutation = useMutation({
-    mutationFn: () => {
-      const unread = notifications.filter((n) => !n.is_read);
-      return Promise.all(unread.map((n) => api.put(`/notifications/${n.id}`, { is_read: true })));
-    },
+    mutationFn: () =>
+      api.put("/notifications/mark-all-read", { user_email: userData.email }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications", userData?.email] }),
   });
@@ -86,7 +87,8 @@ export default function NotificationBell({ userData }) {
                   onClick={() => markAllReadMutation.mutate()}
                   disabled={markAllReadMutation.isPending}
                 >
-                  <CheckCheck className="w-3.5 h-3.5 mr-1" /> All read
+                  <CheckCheck className="w-3.5 h-3.5 mr-1" />
+                  {markAllReadMutation.isPending ? "..." : "All read"}
                 </Button>
               )}
               <Button
@@ -128,7 +130,7 @@ export default function NotificationBell({ userData }) {
                         <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${TYPE_COLORS[notif.type] || "text-gray-400"}`} />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm leading-snug ${!notif.is_read ? "font-medium text-gray-900" : "text-gray-600"}`}>
-                            {notif.message}
+                            {notif.message || notif.title || notif.body || "Notification"}
                           </p>
                           {ts && (
                             <p className="text-xs text-gray-400 mt-0.5">

@@ -49,7 +49,8 @@ const oppTypeConfig = {
 
 const DEFAULT_PAGE_SIZE = 10;
 
-export default function TenderTable({ tenders, onDelete, team, onEmployeeNumberChange, onStatusChange, isBusy, statusUpdatingId }) {
+export default function TenderTable({ tenders, onDelete, team, onEmployeeNumberChange, onStatusChange, isBusy, statusUpdatingId, userData }) {
+  const canEdit = userData?.role === "team_lead" || userData?.role === "admin";
    const [editingEmployeeNumber, setEditingEmployeeNumber] = useState(null);
    const [inputValue, setInputValue] = useState("");
    const [deleteTenderId, setDeleteTenderId] = useState(null);
@@ -119,69 +120,35 @@ export default function TenderTable({ tenders, onDelete, team, onEmployeeNumberC
                   </TableCell>
                   <TableCell className="text-gray-600 capitalize border border-gray-300">{tender.opp_type?.replace(/_/g, ' ') || "—"}</TableCell>
                   <TableCell className="border border-gray-300">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        {/*
-                          While status API is in progress for this row,
-                          show a subtle loading state and disable interactions.
-                        */}
-                        <button
-                          disabled={isBusy || statusUpdatingId === tender.id}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-medium text-xs transition-colors ${
-                            isBusy || statusUpdatingId === tender.id
-                              ? "cursor-not-allowed opacity-60"
-                              : "cursor-pointer"
-                          } ${statusConfig[tender.status]?.className}`}
-                        >
-                          {statusUpdatingId === tender.id ? "Updating..." : (statusConfig[tender.status]?.label || tender.status)}
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          disabled={isBusy || statusUpdatingId === tender.id}
-                          onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "new")}
-                          className="text-xs"
-                        >
-                          <span className="text-blue-700">New</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={isBusy || statusUpdatingId === tender.id}
-                          onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "in_progress")}
-                          className="text-xs"
-                        >
-                          <span className="text-amber-700">In Progress</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={isBusy || statusUpdatingId === tender.id}
-                          onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "submitted")}
-                          className="text-xs"
-                        >
-                          <span className="text-purple-700">Submitted</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={isBusy || statusUpdatingId === tender.id}
-                          onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "won")}
-                          className="text-xs"
-                        >
-                          <span className="text-emerald-700">Won</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={isBusy || statusUpdatingId === tender.id}
-                          onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "lost")}
-                          className="text-xs"
-                        >
-                          <span className="text-red-700">Lost</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={isBusy || statusUpdatingId === tender.id}
-                          onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "on_hold")}
-                          className="text-xs"
-                        >
-                          <span className="text-gray-600">On Hold</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canEdit ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            disabled={isBusy || statusUpdatingId === tender.id}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-medium text-xs transition-colors ${
+                              isBusy || statusUpdatingId === tender.id
+                                ? "cursor-not-allowed opacity-60"
+                                : "cursor-pointer"
+                            } ${statusConfig[tender.status]?.className}`}
+                          >
+                            {statusUpdatingId === tender.id ? "Updating..." : (statusConfig[tender.status]?.label || tender.status)}
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem disabled={isBusy || statusUpdatingId === tender.id} onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "new")} className="text-xs"><span className="text-blue-700">New</span></DropdownMenuItem>
+                          <DropdownMenuItem disabled={isBusy || statusUpdatingId === tender.id} onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "in_progress")} className="text-xs"><span className="text-amber-700">In Progress</span></DropdownMenuItem>
+                          <DropdownMenuItem disabled={isBusy || statusUpdatingId === tender.id} onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "submitted")} className="text-xs"><span className="text-purple-700">Submitted</span></DropdownMenuItem>
+                          <DropdownMenuItem disabled={isBusy || statusUpdatingId === tender.id} onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "won")} className="text-xs"><span className="text-emerald-700">Won</span></DropdownMenuItem>
+                          <DropdownMenuItem disabled={isBusy || statusUpdatingId === tender.id} onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "lost")} className="text-xs"><span className="text-red-700">Lost</span></DropdownMenuItem>
+                          <DropdownMenuItem disabled={isBusy || statusUpdatingId === tender.id} onClick={() => !isBusy && statusUpdatingId == null && onStatusChange?.(tender.id, "on_hold")} className="text-xs"><span className="text-gray-600">On Hold</span></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full font-medium text-xs ${statusConfig[tender.status]?.className}`}>
+                        {statusConfig[tender.status]?.label || tender.status}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-gray-600 border border-gray-300">{tender.pot_id || "—"}</TableCell>
                   <TableCell className="border border-gray-300">
@@ -200,7 +167,7 @@ export default function TenderTable({ tenders, onDelete, team, onEmployeeNumberC
                   <TableCell className="text-gray-600 border border-gray-300">{tender.senior_solution_architect || "—"}</TableCell>
                   <TableCell className="text-gray-600 font-medium border border-gray-300">{tender.solution_architect_assigned || "—"}</TableCell>
                   <TableCell className="border border-gray-300">
-                    {editingEmployeeNumber === tender.id ? (
+                    {canEdit && editingEmployeeNumber === tender.id ? (
                       <div className="flex gap-1">
                         <DropdownMenu open={editingEmployeeNumber === tender.id} onOpenChange={(open) => {
                           if (!open) setEditingEmployeeNumber(null);
@@ -219,10 +186,7 @@ export default function TenderTable({ tenders, onDelete, team, onEmployeeNumberC
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="w-32">
                             {allEmployeeNumbers.map((empNo) => (
-                              <DropdownMenuItem
-                                key={empNo}
-                                onClick={() => handleEmployeeNumberChange(tender.id, empNo)}
-                              >
+                              <DropdownMenuItem key={empNo} onClick={() => handleEmployeeNumberChange(tender.id, empNo)}>
                                 {empNo}
                               </DropdownMenuItem>
                             ))}
@@ -244,15 +208,17 @@ export default function TenderTable({ tenders, onDelete, team, onEmployeeNumberC
                       </div>
                     ) : (
                       <button
-                        disabled={isBusy}
+                        disabled={isBusy || !canEdit}
                         onClick={() => {
-                          if (isBusy) return;
+                          if (isBusy || !canEdit) return;
                           setEditingEmployeeNumber(tender.id);
                           setInputValue(tender.solution_architect_employee_number || "");
                         }}
-                        className="text-gray-600 hover:bg-gray-100 px-2 py-1 rounded w-full text-left text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                        className={`text-gray-600 px-2 py-1 rounded w-full text-left text-xs ${
+                          canEdit ? "hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed" : "cursor-default"
+                        }`}
                       >
-                        {tender.solution_architect_employee_number || "— (Click to add)"}
+                        {tender.solution_architect_employee_number || (canEdit ? "— (Click to add)" : "—")}
                       </button>
                     )}
                   </TableCell>
@@ -281,13 +247,15 @@ export default function TenderTable({ tenders, onDelete, team, onEmployeeNumberC
                             <Eye className="w-4 h-4 mr-2" /> View Details
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          disabled={isBusy}
-                          onClick={() => !isBusy && setDeleteTenderId(tender.id)}
-                        >
-                          {isBusy ? "Working..." : "Delete"}
-                        </DropdownMenuItem>
+                        {canEdit && (
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            disabled={isBusy}
+                            onClick={() => !isBusy && setDeleteTenderId(tender.id)}
+                          >
+                            {isBusy ? "Working..." : "Delete"}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

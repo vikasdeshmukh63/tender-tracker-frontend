@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import React, { useState, useMemo } from "react";
+import api from "@/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Filter, CheckCircle2, Clock, ListTodo } from "lucide-react";
+import { ArrowLeft, Filter, CheckCircle2, Clock, ListTodo, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -13,88 +13,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import TaskFormDialog from "../components/tasks/TaskFormDialog";
 import TaskList from "../components/tasks/TaskList";
 
 export default function AllTasks() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const userDataStr = localStorage.getItem("esds_user");
-  const userData = userDataStr ? JSON.parse(userDataStr) : null;
+  const userData = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem("esds_user") || "{}"); } catch { return {}; }
+  }, []);
 
   React.useEffect(() => {
-    if (!userData) {
-      navigate(createPageUrl("Auth?team=sales"));
-    }
-  }, [userData, navigate]);
+    if (!userData?.role) navigate(createPageUrl("Auth?team=sales"));
+  }, []);
 
-  const [showForm, setShowForm] = useState(false);
-  const [editTask, setEditTask] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
 
+  // Backend applies role-based filtering:
+  // - admin / team_lead → all tasks
+  // - regular user     → only their assigned tasks
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list("-created_date"),
+    queryKey: ["all-tasks"],
+    queryFn: () => api.get("/tasks").then((r) => r.data),
+    enabled: !!userData?.role,
   });
 
+  // Tenders list is used by TaskList to display the tender name per task
   const { data: tenders = [] } = useQuery({
-    queryKey: ["tenders"],
-    queryFn: () => base44.entities.Tender.list(),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Task.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setShowForm(false);
-      setEditTask(null);
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Task.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setShowForm(false);
-      setEditTask(null);
-    },
+    queryKey: ["tenders-for-tasks"],
+    queryFn: () => api.get("/tenders").then((r) => r.data),
+    enabled: !!userData?.role,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Task.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    mutationFn: (id) => api.delete(`/tasks/${id}`).then((r) => r.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["all-tasks"] }),
   });
 
-  const handleSave = (formData) => {
-    if (editTask) {
-      updateMutation.mutate({ id: editTask.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
-  };
-
-  const filteredTasks = tasks.filter((task) => {
-    const statusMatch = statusFilter === "all" || task.status === statusFilter;
-    const priorityMatch = priorityFilter === "all" || task.priority === priorityFilter;
-    return statusMatch && priorityMatch;
+  const updateMutation = useMutation({
+    mutationFn: ({ taskId, data }) =>
+      api.put(`/tasks/${taskId}`, data).then((r) => r.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["all-tasks"] }),
   });
 
-  const stats = {
+  const filteredTasks = useMemo(() =>
+    tasks.filter((task) => {
+      const statusMatch = statusFilter === "all" || task.status === statusFilter;
+      const priorityMatch = priorityFilter === "all" || task.priority === priorityFilter;
+      return statusMatch && priorityMatch;
+    }),
+    [tasks, statusFilter, priorityFilter]
+  );
+
+  const stats = useMemo(() => ({
     total: tasks.length,
     pending: tasks.filter((t) => t.status === "pending").length,
     inProgress: tasks.filter((t) => t.status === "in_progress").length,
     completed: tasks.filter((t) => t.status === "completed").length,
-  };
+    overdue: tasks.filter((t) => {
+      if (t.status === "completed" || !t.due_date) return false;
+      return new Date(t.due_date) < new Date();
+    }).length,
+  }), [tasks]);
 
-  if (!userData) {
-    return null;
-  }
+  const isAdminOrLead =
+    userData?.role === "admin" || userData?.role === "team_lead";
+
+  if (!userData?.role) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-5">
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -109,94 +100,51 @@ export default function AllTasks() {
             </Link>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">
-                All Tasks
+                {isAdminOrLead ? "All Tasks" : "My Tasks"}
               </h1>
               <p className="text-gray-500 text-xs mt-0.5">
-                Manage tasks across all tenders
+                {isAdminOrLead
+                  ? "View and manage tasks across all tenders"
+                  : "Tasks assigned to you"}
               </p>
             </div>
           </div>
 
-          <Button
-            onClick={() => {
-              setEditTask(null);
-              setShowForm(true);
-            }}
-            className="bg-[#1e3a8a] hover:bg-[#1e40af] text-white gap-1.5 rounded-lg h-8 text-xs px-3"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Task
-          </Button>
+          {/* Tasks can only be created from within a Tender — shown as a hint */}
+          {isAdminOrLead && (
+            <p className="text-xs text-gray-400 italic">
+              To create a task, open a tender and use the Tasks tab.
+            </p>
+          )}
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl border border-gray-100 p-3"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <ListTodo className="w-4 h-4 text-blue-600" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          {[
+            { label: "Total", value: stats.total, icon: ListTodo, bg: "bg-blue-50", text: "text-blue-700", iconColor: "text-blue-500" },
+            { label: "Pending", value: stats.pending, icon: Clock, bg: "bg-yellow-50", text: "text-yellow-700", iconColor: "text-yellow-500" },
+            { label: "In Progress", value: stats.inProgress, icon: Clock, bg: "bg-sky-50", text: "text-sky-700", iconColor: "text-sky-500" },
+            { label: "Completed", value: stats.completed, icon: CheckCircle2, bg: "bg-green-50", text: "text-green-700", iconColor: "text-green-500" },
+            { label: "Overdue", value: stats.overdue, icon: AlertCircle, bg: "bg-red-50", text: "text-red-700", iconColor: "text-red-500" },
+          ].map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className={`${s.bg} rounded-xl border border-gray-100 p-3`}
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-white/70 flex items-center justify-center">
+                  <s.icon className={`w-4 h-4 ${s.iconColor}`} />
+                </div>
+                <div>
+                  <p className={`text-xl font-bold ${s.text}`}>{s.value}</p>
+                  <p className="text-xs text-gray-500">{s.label}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-xs text-gray-500">Total Tasks</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="bg-white rounded-xl border border-gray-100 p-3"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">{stats.pending}</p>
-                <p className="text-xs text-gray-500">Pending</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl border border-gray-100 p-3"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">{stats.inProgress}</p>
-                <p className="text-xs text-gray-500">In Progress</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="bg-white rounded-xl border border-gray-100 p-3"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-gray-900">{stats.completed}</p>
-                <p className="text-xs text-gray-500">Completed</p>
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          ))}
         </div>
 
         {/* Filters */}
@@ -236,7 +184,7 @@ export default function AllTasks() {
           </Select>
         </motion.div>
 
-        {/* Tasks List */}
+        {/* Task List */}
         {loadingTasks ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-4 border-gray-200 border-t-[#00A3E0] rounded-full animate-spin" />
@@ -246,24 +194,11 @@ export default function AllTasks() {
             tasks={filteredTasks}
             tenders={tenders}
             showTenderName={true}
-            onEdit={(task) => {
-              setEditTask(task);
-              setShowForm(true);
-            }}
+            userData={userData}
+            onEdit={() => {}}
             onDelete={(id) => deleteMutation.mutate(id)}
           />
         )}
-
-        {/* Form Dialog */}
-        <TaskFormDialog
-          open={showForm}
-          onClose={() => {
-            setShowForm(false);
-            setEditTask(null);
-          }}
-          onSave={handleSave}
-          task={editTask}
-        />
       </div>
     </div>
   );

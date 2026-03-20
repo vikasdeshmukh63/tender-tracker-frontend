@@ -199,13 +199,15 @@ export default function TenderDetail() {
               <ArrowLeft className="w-3.5 h-3.5" /> Back
             </Button>
           </Link>
-          <Button
-            onClick={() => setShowEdit(true)}
-            variant="outline"
-            className="gap-1.5 rounded-lg h-8 text-xs px-3"
-          >
-            <Pencil className="w-3.5 h-3.5" /> Edit
-          </Button>
+          {(userData.role === "team_lead" || userData.role === "admin") && (
+            <Button
+              onClick={() => setShowEdit(true)}
+              variant="outline"
+              className="gap-1.5 rounded-lg h-8 text-xs px-3"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </Button>
+          )}
         </motion.div>
 
         {/* Title area */}

@@ -1,23 +1,3 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
-import { createPageUrl } from "../utils";
-import { motion } from "framer-motion";
-import {
-  FileText,
-  Plus,
-  TrendingUp,
-  Clock,
-  Trophy,
-  AlertCircle,
-  ArrowLeft,
-  Search,
-  Download,
-  BarChart2,
-  Users,
-  Sparkles,
-  Calendar,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,20 +7,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  BarChart2,
+  Clock,
+  Download,
+  FileText,
+  Plus,
+  Search,
+  Sparkles,
+  TrendingUp,
+  Trophy,
+  Users
+} from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { createPageUrl } from "../utils";
 
-import StatsRow from "../components/dashboard/StatsRow";
-import TenderTable from "../components/dashboard/TenderTable";
-import TenderFormDialog from "../components/dashboard/TenderFormDialog";
-import StatusChart from "../components/dashboard/StatusChart";
-import ValueChart from "../components/dashboard/ValueChart";
-import ImportExcelDialog from "../components/dashboard/ImportExcelDialog";
+import api from "@/api/client";
+import * as XLSX from "xlsx";
 import DashboardAnalytics from "../components/dashboard/DashboardAnalytics";
+import ImportExcelDialog from "../components/dashboard/ImportExcelDialog";
+import StatsRow from "../components/dashboard/StatsRow";
+import StatusChart from "../components/dashboard/StatusChart";
 import TenderCalendar from "../components/dashboard/TenderCalendar";
+import TenderFormDialog from "../components/dashboard/TenderFormDialog";
+import TenderTable from "../components/dashboard/TenderTable";
+import ValueChart from "../components/dashboard/ValueChart";
+import { sendTenderDeadlineEmail, sendTenderSubmittedEmail } from "../components/lib/emailAlerts";
 import NotificationBell from "../components/notifications/NotificationBell";
 import { useNotificationChecker } from "../components/notifications/useNotificationChecker";
-import * as XLSX from "xlsx";
-import { sendTenderSubmittedEmail, sendTenderDeadlineEmail } from "../components/lib/emailAlerts";
-import api from "@/api/client";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -445,12 +443,6 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto">
-            <Link to={createPageUrl(`CalendarView?team=${team}`)}>
-              <Button variant="outline" className="rounded-lg gap-1.5 h-8 text-xs px-3">
-                <Calendar className="w-3.5 h-3.5" /> Calendar
-              </Button>
-            </Link>
-
             {isAdmin && (
               <Link to={createPageUrl("Analytics")}>
                 <Button variant="outline" className="rounded-lg gap-1.5 h-8 text-xs px-3">
@@ -487,19 +479,17 @@ export default function Dashboard() {
               </Button>
             )}
 
-            {!isAdmin && (
-              <Button
-                onClick={() => {
-                  setEditTender(null);
-                  setShowForm(true);
-                }}
-                disabled={isMutating}
-                className="text-white gap-1.5 rounded-lg h-8 text-xs px-3"
-                style={{ backgroundColor: accentColor }}
-              >
-                <Plus className="w-3.5 h-3.5" /> New Tender
-              </Button>
-            )}
+            <Button
+              onClick={() => {
+                setEditTender(null);
+                setShowForm(true);
+              }}
+              disabled={isMutating}
+              className="text-white gap-1.5 rounded-lg h-8 text-xs px-3"
+              style={{ backgroundColor: accentColor }}
+            >
+              <Plus className="w-3.5 h-3.5" /> New Tender
+            </Button>
           </div>
         </motion.div>
 
@@ -655,6 +645,7 @@ export default function Dashboard() {
                  }}
                  isBusy={isMutating}
                  statusUpdatingId={statusUpdatingId}
+                 userData={userData}
                />
             )}
           </>
