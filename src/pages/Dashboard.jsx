@@ -473,6 +473,7 @@ export default function Dashboard() {
             {team === "presales" && (
               <Button
                 className="rounded-lg gap-1.5 h-8 text-xs px-3 bg-[#1e3a8a] hover:bg-[#1e40af] text-white border-0 shadow-md shadow-blue-900/30"
+                onClick={() => window.open("https://presales.esdsconnect.com/", "_blank")}
               >
                 <Sparkles className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: "3s" }} />
                 Presales Agentic AI
